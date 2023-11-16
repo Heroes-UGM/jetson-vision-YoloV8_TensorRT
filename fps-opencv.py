@@ -12,10 +12,10 @@ from models.torch_utils import det_postprocess
 from models.utils import blob, letterbox, path_to_list
 
 pipeline = " ! ".join(["v4l2src device=/dev/video0",
-                       "video/x-raw, width=640, height=480, framerate=30/1",
+                       "video/x-raw, width=640, height=480, format=(string)YUY2, framerate=30/1",
                        "videoconvert",
-                       "video/x-raw, format=(string)BGR",
-                       "appsink"
+                       "video/x-raw, format=BGR",
+                       "appsink drop=true sync=false"
                        ])
 
 device = torch.device("cuda:0")
