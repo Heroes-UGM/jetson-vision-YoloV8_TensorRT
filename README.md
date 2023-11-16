@@ -81,6 +81,11 @@ selesai deh, buat ngecek modelnya bisa apa ga:
 ```
 
 ## Cara ngetest inference pake webcam
+### Dengan library nanocamera
 ```
-python3 camera.py
+python3 inf-nanocamera.py
+```
+### Dengan library opencv
+```
+python3 inf-opencv.py
 ```
