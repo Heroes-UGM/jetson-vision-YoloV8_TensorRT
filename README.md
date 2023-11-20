@@ -6,9 +6,9 @@ Alur convert model:  PyTorch(trained yolov8 model) -> ONNX -> TensorRT Engine
 Untuk convert model yolov8.pt ke onnx, rada susah pake jetson, jadi convert dulu jadi onnx pake windows pake modul ultralytics
 
 ## Instal ultralytics
-GitHub ultralytics: https://github.com/ultralytics/ultralytics
+GitHub ultralytics: https://github.com/ultralytics/ultralytics (versi yang dipake 8.0.172)
 
-Diperlukan modifikasi modul ultralytics, karena hasil export onnx dari ultralytics outputnya ngawuer
+Diperlukan modifikasi modul ultralytics , karena hasil export onnx dari ultralytics outputnya ngawuer
 
 https://medium.com/@smallerNdeeper/yolov8-batch-inference-implementation-using-tensorrt-2-converting-to-batch-model-engine-e02dc203fc8b
 
@@ -66,13 +66,13 @@ Bikin dulu model yang dah di train (pytorch model .pt)
 
 Kemudian convert .pt ke .onnx pake ultralytics yang di windows (gatau kenapa gabisa di jetson langsung)
 ```
-yolo export model=<NAMA MODEL>.pt format=onnx simplify=True half=True imgsz=480
+yolo export model=<NAMA MODEL>.pt format=onnx simplify=True imgsz=480
 ```
 panduan parameter export: https://docs.ultralytics.com/modes/export/#arguments
 
 Setelah model dikonvert jadi .onnx, masukin ke jetson buat konvert .onnx ke .engine:
 ```
-/usr/src/tensorrt/bin/trtexec --onnx=<NAMA MODEL>.onnx --saveEngine=<NAMA MODEL>.engine
+/usr/src/tensorrt/bin/trtexec --onnx=<NAMA MODEL>.onnx --saveEngine=<NAMA MODEL>.engine --fp16
 ```
 
 selesai deh, buat ngecek modelnya bisa apa ga:
@@ -81,6 +81,18 @@ selesai deh, buat ngecek modelnya bisa apa ga:
 ```
 
 ## Cara ngetest inference pake webcam
+
+### Dengan library jetson-inference (paling efisien)
+https://github.com/dusty-nv/jetson-inference
+Ada problem buat display ke OpenGL, tambahin kode ini ke ./bashrc
+```
+export LD_PRELOAD=/usr/lib/aarch64-linux-gnu/libgomp.so.1
+```
+Display dari lib ini gabisa dipake kalo gacolok hdmi.
+```
+python3 inf-jeutils.py
+```
+
 ### Dengan library nanocamera
 ```
 python3 inf-nanocamera.py
