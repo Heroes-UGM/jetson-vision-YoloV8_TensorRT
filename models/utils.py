@@ -1,7 +1,5 @@
-from pathlib import Path
 from typing import List, Tuple, Union
 
-import cv2
 import numpy as np
 from numpy import ndarray
 from torchvision.ops import nms
@@ -56,119 +54,27 @@ def blob(im: ndarray, return_seg: bool = False) -> Union[ndarray, Tuple]:
         return im, seg
     else:
         return im
+        
+def calculate_letterbox_offset(original_width, original_height, target_width, target_height):
+    # Calculate aspect ratios
+    original_aspect_ratio = original_width / original_height
+    target_aspect_ratio = target_width / target_height
 
-
-def sigmoid(x):
-    return 1. / (1. + np.exp(-x))
-
-
-def path_to_list(images_path: Union[str, Path]) -> List:
-    if isinstance(images_path, str):
-        images_path = Path(images_path)
-    assert images_path.exists()
-    if images_path.is_dir():
-        images = [
-            i.absolute() for i in images_path.iterdir() if i.suffix in SUFFIXS
-        ]
+    # Check if letterboxing or pillarboxing is needed
+    if original_aspect_ratio > target_aspect_ratio:
+        # Letterboxing
+        scaled_width = target_width
+        scaling_factor = target_width / original_width
+        scaled_height = original_height * scaling_factor
+        delta_w = 0
+        delta_h = (target_height - scaled_height) / 2
     else:
-        assert images_path.suffix in SUFFIXS
-        images = [images_path.absolute()]
-    return images
+        # Pillarboxing
+        scaled_height = target_height
+        scaling_factor = target_height / original_height
+        scaled_width = original_width * scaling_factor
+        delta_w = (target_width - scaled_width) / 2
+        delta_h = 0
 
+    return (scaling_factor, delta_w, delta_h, target_width, target_height)
 
-def crop_mask(masks: ndarray, bboxes: ndarray) -> ndarray:
-    n, h, w = masks.shape
-    x1, y1, x2, y2 = np.split(bboxes[:, :, None], [1, 2, 3],
-                              1)  # x1 shape(1,1,n)
-    r = np.arange(w, dtype=x1.dtype)[None, None, :]  # rows shape(1,w,1)
-    c = np.arange(h, dtype=x1.dtype)[None, :, None]  # cols shape(h,1,1)
-
-    return masks * ((r >= x1) * (r < x2) * (c >= y1) * (c < y2))
-
-
-def det_postprocess(data: Tuple[ndarray, ndarray, ndarray, ndarray]):
-    assert len(data) == 4
-    iou_thres: float = 0.65
-    num_dets, bboxes, scores, labels = (i[0] for i in data)
-    nums = num_dets.item()
-    if nums == 0:
-        return np.empty((0, 4), dtype=np.float32), np.empty(
-            (0, ), dtype=np.float32), np.empty((0, ), dtype=np.int32)
-    # check score negative
-    scores[scores < 0] = 1 + scores[scores < 0]
-    # add nms
-    idx = nms(bboxes, scores, iou_thres)
-    bboxes, scores, labels = bboxes[idx], scores[idx], labels[idx]
-
-    bboxes = bboxes[:nums]
-    scores = scores[:nums]
-    labels = labels[:nums]
-    return bboxes, scores, labels
-
-
-def seg_postprocess(
-        data: Tuple[ndarray],
-        shape: Union[Tuple, List],
-        conf_thres: float = 0.25,
-        iou_thres: float = 0.65) \
-        -> Tuple[ndarray, ndarray, ndarray, ndarray]:
-    assert len(data) == 2
-    h, w = shape[0] // 4, shape[1] // 4  # 4x downsampling
-    outputs, proto = (i[0] for i in data)
-    bboxes, scores, labels, maskconf = np.split(outputs, [4, 5, 6], 1)
-    scores, labels = scores.squeeze(), labels.squeeze()
-    idx = scores > conf_thres
-    if not idx.any():  # no bounding boxes or seg were created
-        return np.empty((0, 4), dtype=np.float32), \
-            np.empty((0,), dtype=np.float32), \
-            np.empty((0,), dtype=np.int32), \
-            np.empty((0, 0, 0, 0), dtype=np.int32)
-
-    bboxes, scores, labels, maskconf = \
-        bboxes[idx], scores[idx], labels[idx], maskconf[idx]
-    cvbboxes = np.concatenate([bboxes[:, :2], bboxes[:, 2:] - bboxes[:, :2]],
-                              1)
-    labels = labels.astype(np.int32)
-    v0, v1 = map(int, (cv2.__version__).split('.')[:2])
-    assert v0 == 4, 'OpenCV version is wrong'
-    if v1 > 6:
-        idx = cv2.dnn.NMSBoxesBatched(cvbboxes, scores, labels, conf_thres,
-                                      iou_thres)
-    else:
-        idx = cv2.dnn.NMSBoxes(cvbboxes, scores, conf_thres, iou_thres)
-    bboxes, scores, labels, maskconf = \
-        bboxes[idx], scores[idx], labels[idx], maskconf[idx]
-    masks = sigmoid(maskconf @ proto).reshape(-1, h, w)
-    masks = crop_mask(masks, bboxes / 4.)
-    masks = masks.transpose([1, 2, 0])
-    masks = cv2.resize(masks, (shape[1], shape[0]),
-                       interpolation=cv2.INTER_LINEAR)
-    masks = masks.transpose(2, 0, 1)
-    masks = np.ascontiguousarray((masks > 0.5)[..., None], dtype=np.float32)
-    return bboxes, scores, labels, masks
-
-
-def pose_postprocess(
-        data: Union[Tuple, ndarray],
-        conf_thres: float = 0.25,
-        iou_thres: float = 0.65) \
-        -> Tuple[ndarray, ndarray, ndarray]:
-    if isinstance(data, tuple):
-        assert len(data) == 1
-        data = data[0]
-    outputs = np.transpose(data[0], (1, 0))
-    bboxes, scores, kpts = np.split(outputs, [4, 5], 1)
-    scores, kpts = scores.squeeze(), kpts.squeeze()
-    idx = scores > conf_thres
-    if not idx.any():  # no bounding boxes or seg were created
-        return np.empty((0, 4), dtype=np.float32), np.empty(
-            (0, ), dtype=np.float32), np.empty((0, 0, 0), dtype=np.float32)
-    bboxes, scores, kpts = bboxes[idx], scores[idx], kpts[idx]
-    xycenter, wh = np.split(bboxes, [
-        2,
-    ], -1)
-    cvbboxes = np.concatenate([xycenter - 0.5 * wh, wh], -1)
-    idx = cv2.dnn.NMSBoxes(cvbboxes, scores, conf_thres, iou_thres)
-    cvbboxes, scores, kpts = cvbboxes[idx], scores[idx], kpts[idx]
-    cvbboxes[:, 2:] += cvbboxes[:, :2]
-    return cvbboxes, scores, kpts.reshape(idx.shape[0], -1, 3)

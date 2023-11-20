@@ -13,8 +13,12 @@ pipeline = " ! ".join(["v4l2src device=/dev/video0",
                        "video/x-raw, width=640, height=480, format=(string)YUY2, framerate=30/1",
                        "videoconvert",
                        "video/x-raw, format=BGR",
-                       "appsink drop=true sync=false"
+                       "appsink drop=1"
                        ])
+                       
+gst = "appsrc ! queue ! videoconvert ! video/x-raw,format=RGBA ! nvvidconv ! nvegltransform ! nveglglessink "
+
+                       
 
 device = torch.device("cuda:0")
 Engine = TRTModule("best_416_sim.engine", device)
@@ -24,6 +28,7 @@ H, W = Engine.inp_info[0].shape[-2:]
 Engine.set_desired(['num_dets', 'bboxes', 'scores', 'labels'])
 
 video_capture = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+vw = cv2.VideoWriter(gst, cv2.CAP_GSTREAMER, 0, 30, (640, 480))
 prev_time = 0
 new_time = 0
 
@@ -56,7 +61,7 @@ while video_capture.isOpened():
         fps = int(1/(new_time-prev_time))
         prev_time = new_time
         print("FPS: "+str(fps))
-        cv2.imshow("Output", frame)
+        vw.write(frame)
         key = cv2.waitKey(1)
         if key == ord('q'):
             break

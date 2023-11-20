@@ -5,7 +5,7 @@ import numpy as np
 random.seed(0)
 
 # detection model classes
-CLASSES = ('person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus',
+CLASSES = ('bola1', 'bola2', 'car', 'motorcycle', 'airplane', 'bus',
            'train', 'truck', 'boat', 'traffic light', 'fire hydrant',
            'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog',
            'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe',
