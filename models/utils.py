@@ -44,16 +44,10 @@ def letterbox(im: ndarray,
 
 
 def blob(im: ndarray, return_seg: bool = False) -> Union[ndarray, Tuple]:
-    seg = None
-    if return_seg:
-        seg = im.astype(np.float32) / 255
-    im = im.transpose([2, 0, 1])
+    im = np.transpose(im,[2,0,1])
     im = im[np.newaxis, ...]
     im = np.ascontiguousarray(im).astype(np.float32) / 255
-    if return_seg:
-        return im, seg
-    else:
-        return im
+    return im
         
 def calculate_letterbox_offset(original_width, original_height, target_width, target_height):
     # Calculate aspect ratios

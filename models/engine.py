@@ -345,8 +345,11 @@ class TRTProfilerV0(trt.IProfiler):
 
     def __init__(self):
         trt.IProfiler.__init__(self)
+        self.total_runtime = 0.0
 
     def report_layer_time(self, layer_name: str, ms: float):
         f = '\t%40s\t\t\t\t%10.4fms'
         print(f % (layer_name if len(layer_name) < 40 else layer_name[:35] +
                    ' ' + '*' * 4, ms))
+        self.total_runtime += ms
+        print(str(self.total_runtime) + "ms total")
