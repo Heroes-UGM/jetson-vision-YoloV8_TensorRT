@@ -2,7 +2,6 @@ from typing import List, Tuple, Union
 
 import numpy as np
 from numpy import ndarray
-from torchvision.ops import nms
 
 # image suffixs
 SUFFIXS = ('.bmp', '.dng', '.jpeg', '.jpg', '.mpo', '.png', '.tif', '.tiff',

@@ -6,13 +6,13 @@ from jetson_utils import videoSource, videoOutput, cudaAllocMapped, cudaDeviceSy
 import torch
 #import time
 
-engine_file = "yolov8n_dataset8/yolov8_last_416_nano_v8_v2.engine"
+engine_file = "last.engine"
 # make sure to match hardware
 widthcam = 640
 heightcam = 480
 fpscam = 30
 # "display://0" for opengl display, "webrtc://@:8554/output" for web stream, "rtp://<remote-ip>:8554" for vlc stream
-outputDisplay = "display://0"
+outputDisplay = "webrtc://@:8554/output"
 
 device = torch.device("cuda:0")
 Engine = TRTModule(engine_file, device)
@@ -66,7 +66,6 @@ while True:
             font.OverlayText(img, img.width, img.height, f'{int(distance)}', bbox[0], bbox[1], font.White, font.Gray40)
             font.OverlayText(img, img.width, img.height, f'{int(score*100)} %', bbox[2], bbox[3], font.White, font.Gray40)
         output.Render(img)
-        
         # Calculate FPS
         #new_time = time.time()
         #fps = int(1/(new_time-prev_time))
