@@ -91,7 +91,8 @@ Versi TensorRT: 8.2.1.8
 ## Cara Convert Model
 Bikin dulu model yang dah di train (pytorch model .pt)
 
-Kemudian convert .pt ke .onnx pake colab (ada di repo file .ipynb nya)
+Kemudian convert .pt ke .onnx pake colab
+https://colab.research.google.com/drive/1TkLnD-2UbtfW2o76C_wV4A64Mx1V6J1D?usp=sharing
 
 Setelah model dikonvert jadi .onnx, masukin ke jetson buat konvert .onnx ke .engine:
 ```
