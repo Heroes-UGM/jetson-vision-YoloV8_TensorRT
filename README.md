@@ -3,72 +3,96 @@ Inference: https://github.com/triple-Mu/YOLOv8-TensorRT
 
 Alur convert model:  PyTorch(trained yolov8 model) -> ONNX -> TensorRT Engine
 
-Untuk convert model yolov8.pt ke onnx, rada susah pake jetson, jadi convert dulu jadi onnx pake windows pake modul ultralytics
-
-## Instal ultralytics
-GitHub ultralytics: https://github.com/ultralytics/ultralytics (versi yang dipake 8.0.172)
-
-Diperlukan modifikasi modul ultralytics , karena hasil export onnx dari ultralytics outputnya ngawuer
-
-https://medium.com/@smallerNdeeper/yolov8-batch-inference-implementation-using-tensorrt-2-converting-to-batch-model-engine-e02dc203fc8b
-
-Modif file head.py (ultralytics - nn - modules - head.py) jadi gini:
+## Tahapan install dependencies dari bare image
+### Aktifin CUDA
+Masukin kode dibawah ke ~/.bashrc
 ```
-    def forward(self, x):
-        """Concatenates and returns predicted bounding boxes and class probabilities."""
-        shape = x[0].shape  # BCHW
-        for i in range(self.nl):
-            x[i] = torch.cat((self.cv2[i](x[i]), self.cv3[i](x[i])), 1)
-        if self.training:
-            return x
-        elif self.dynamic or self.shape != shape:
-            self.anchors, self.strides = (x.transpose(0, 1) for x in make_anchors(x, self.stride, 0.5))
-            self.shape = shape
-
-        x_cat = torch.cat([xi.view(shape[0], self.no, -1) for xi in x], 2)
-        if self.export and self.format in ('saved_model', 'pb', 'tflite', 'edgetpu', 'tfjs'):  # avoid TF FlexSplitV ops
-            box = x_cat[:, :self.reg_max * 4]
-            cls = x_cat[:, self.reg_max * 4:]
-        else:
-            box, cls = x_cat.split((self.reg_max * 4, self.nc), 1)
-        conf, label = cls.sigmoid().max(1)
-        dbox = dist2bbox(self.dfl(box), self.anchors.unsqueeze(0), xywh=False, dim=1) * self.strides
-
-        if self.export and self.format in ('tflite', 'edgetpu'):
-            # Normalize xywh with image size to mitigate quantization error of TFLite integer models as done in YOLOv5:
-            # https://github.com/ultralytics/yolov5/blob/0c8de3fca4a702f8ff5c435e67f378d1fce70243/models/tf.py#L307-L309
-            # See this PR for details: https://github.com/ultralytics/ultralytics/pull/1695
-            img_h = shape[2] * self.stride[0]
-            img_w = shape[3] * self.stride[0]
-            img_size = torch.tensor([img_w, img_h, img_w, img_h], device=dbox.device).reshape(1, 4, 1)
-            dbox /= img_size
-
-        y = torch.cat((dbox, cls.sigmoid()), 1)
-        dbox = dbox.transpose(1,2)
-        return (dbox, conf, label) if self.export else (y, x)
+export PATH=/usr/local/cuda/bin${PATH:+:${PATH}}$ 
+export LD_LIBRARY_PATH=/usr/local/cuda/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+```
+Cek di terminal
+```
+nvcc --version
+```
+Kalau muncul berarti udah oke
+### Install PIP
+```
+sudo apt install python3-pip
+```
+### Install TensorRT untuk binding ke python
+file wheel tensorrt 8.2.1.8 ada di repo, didownload aja terus install pake
+```
+sudo -H pip3 install tensorrt-8.2.1.8-cp38-none-linux_aarch64.whl
+```
+### Install GCC
+https://linuxize.com/post/how-to-install-gcc-on-ubuntu-20-04/#google_vignette
+```
+sudo apt install gcc-8 g++-8 gcc-9 g++-9
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-9 90 --slave /usr/bin/g++ g++ /usr/bin/g++-9 --slave /usr/bin/gcov gcov /usr/bin/gcov-9
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 80 --slave /usr/bin/g++ g++ /usr/bin/g++-8 --slave /usr/bin/gcov gcov /usr/bin/gcov-8
+sudo update-alternatives --config gcc
+```
+Pastiin gcc yang kepake versi 8
+### Install Protobuf
+Versi protobuf harus <= 3.20.1
+```
+pip3 install protobuf==3.20.*
+```
+### Install ONNX
+```
+pip3 install onnx==1.11.0
+```
+untuk onnxruntime versi 1.11.0, download di (https://elinux.org/Jetson_Zoo#ONNX_Runtime) (wheel installation)
+### Install ultralytics
+```
+pip3 install ultralytics --no-dependencies
+```
+### Install Jetson Inference
+```
+git clone https://github.com/dusty-nv/jetson-inference
+cd jetson-inference
+git submodule update --init
+mkdir build
+cd build
+cmake ..
+make -j8
+sudo make install
+sudo ldconfig
+```
+### Install PyTorch dan TorchVision
+https://qengineering.eu/install-pytorch-on-jetson-nano.html
+### Install cmake
+versi cmake yang dipake 3.22.4
+```
+wget https://github.com/Kitware/CMake/releases/download/v3.22.4/cmake-3.22.4-linux-aarch64.tar.gz -q --show-progress 
+tar -zxvf cmake-3.22.4-linux-aarch64.tar.gz 
+cd cmake-3.22.4-linux-aarch64/
+sudo cp -rf bin/ doc/ share/ /usr/local/
+sudo cp -rf man/* /usr/local/man
+sync
+cmake --version 
+```
+### Install onnxsim
+```
+pip3 install onnxsim
 ```
 
 ## Instal YOLOv8-TensorRT
 GitHub YOLOv8-TensorRT: https://github.com/triple-Mu/YOLOv8-TensorRT
 
-Versi ONNX yang dipake: 1.6.0
+Versi ONNX yang dipake: 1.11.0
 
-Versi ONNXRuntime-gpu yang dipake: 1.6.0 (https://elinux.org/Jetson_Zoo#ONNX_Runtime)
+Versi ONNXRuntime-gpu yang dipake: 1.11.0 (https://elinux.org/Jetson_Zoo#ONNX_Runtime)
 
 Versi CUDA: 10.2.300
 
-Versi TensorRT: 8.0.1.6
-
-Versi OpenCV: 4.8.0 with CUDA
+Versi TensorRT: 8.2.1.8
 
 ## Cara Convert Model
 Bikin dulu model yang dah di train (pytorch model .pt)
 
-Kemudian convert .pt ke .onnx pake ultralytics yang di windows (gatau kenapa gabisa di jetson langsung)
-```
-yolo export model=<NAMA MODEL>.pt format=onnx simplify=True imgsz=480
-```
-panduan parameter export: https://docs.ultralytics.com/modes/export/#arguments
+Kemudian convert .pt ke .onnx pake colab
+https://colab.research.google.com/drive/1TkLnD-2UbtfW2o76C_wV4A64Mx1V6J1D?usp=sharing
 
 Setelah model dikonvert jadi .onnx, masukin ke jetson buat konvert .onnx ke .engine:
 ```
