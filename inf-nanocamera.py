@@ -5,16 +5,16 @@ from pathlib import Path
 import cv2
 import torch
 import time
-import imutils
+#import imutils
 import nanocamera as nano
 
 from config import CLASSES, COLORS
 from models.torch_utils import det_postprocess
-from models.utils import blob, letterbox, path_to_list
+from models.utils import blob, letterbox
 
 
 device = torch.device("cuda:0")
-Engine = TRTModule("best_416_sim.engine", device)
+Engine = TRTModule("last_300ep.engine", device)
 H, W = Engine.inp_info[0].shape[-2:]
 
 # set desired output names order

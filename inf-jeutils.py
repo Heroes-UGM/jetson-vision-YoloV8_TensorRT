@@ -1,18 +1,22 @@
+print("Loading library...")
 from models import TRTModule  # isort:skip
 from config import CLASSES, COLORS
 from models.torch_utils import det_postprocess
 from models.utils import blob, calculate_letterbox_offset
 from jetson_utils import videoSource, videoOutput, cudaAllocMapped, cudaDeviceSynchronize, cudaOverlay, cudaResize, cudaDrawRect, cudaFont
 import torch
-#import time
+import time
 
-engine_file = "last.engine"
+print("Loading Engine file...")
+engine_file = "last_300ep.engine"
 # make sure to match hardware
 widthcam = 640
 heightcam = 480
 fpscam = 30
 # "display://0" for opengl display, "webrtc://@:8554/output" for web stream, "rtp://<remote-ip>:8554" for vlc stream
 outputDisplay = "webrtc://@:8554/output"
+#outputDisplay = "display://0"
+#outputDisplay = "rtp://192.168.55.1:8554" 
 
 device = torch.device("cuda:0")
 Engine = TRTModule(engine_file, device)
@@ -20,10 +24,11 @@ H, W = Engine.inp_info[0].shape[-2:]
 
 # set desired output names order
 Engine.set_desired(['num_dets', 'bboxes', 'scores', 'labels'])
-#prev_time = 0
-#new_time = 0
+prev_time = 0
+new_time = 0
 
 # Initiate source and display
+print("Loading camera and output...")
 input = videoSource("/dev/video0", options={'width': widthcam, 'height': heightcam, 'framerate': fpscam})
 output = videoOutput(outputDisplay, ["--output-encoder=v4l2","--headless"])
 offset = calculate_letterbox_offset(input.GetWidth(),input.GetHeight(),W,H)
@@ -67,7 +72,7 @@ while True:
             font.OverlayText(img, img.width, img.height, f'{int(score*100)} %', bbox[2], bbox[3], font.White, font.Gray40)
         output.Render(img)
         # Calculate FPS
-        #new_time = time.time()
-        #fps = int(1/(new_time-prev_time))
-        #prev_time = new_time
-        #print("FPS: "+str(fps))
+        new_time = time.time()
+        fps = int(1/(new_time-prev_time))
+        prev_time = new_time
+        print("FPS: "+str(fps))
