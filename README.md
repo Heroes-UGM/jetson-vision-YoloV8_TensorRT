@@ -96,7 +96,7 @@ https://colab.research.google.com/drive/1TkLnD-2UbtfW2o76C_wV4A64Mx1V6J1D?usp=sh
 
 Setelah model dikonvert jadi .onnx, masukin ke jetson buat konvert .onnx ke .engine:
 ```
-/usr/src/tensorrt/bin/trtexec --onnx=<NAMA MODEL>.onnx --saveEngine=<NAMA MODEL>.engine --fp16
+/usr/src/tensorrt/bin/trtexec --onnx=<NAMA MODEL>.onnx --saveEngine=<NAMA MODEL>.engine --workspace=1500
 ```
 
 selesai deh, buat ngecek modelnya bisa apa ga:
